@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Leads</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Ensure body takes at least full viewport height */
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%; /* Ensure container takes full width */
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+        .tab:hover {
+            background: #0056b3;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Dashboard Styles */
+        .dashboard-top {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+         .metric-card.general {
+             background: linear-gradient(135deg, #28a745 0%, #218838 100%); /* Different color for general */
+         }
+        .metric-card h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        .metric-card .number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-card .value {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .filter-group label {
+            font-weight: bold;
+            color: #333;
+        }
+        .filter-group select, .filter-group input {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            /* Changed from min-height to height for stability */
+            height: 350px;
+            position: relative; /* Needed for canvas positioning */
+        }
+        .chart-container h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+         .chart-container canvas {
+             width: 100% !important;
+             height: 100% !important; /* Ensure canvas fills container */
+         }
+        .line-chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+             /* Changed from min-height to height for stability */
+            height: 350px;
+             position: relative; /* Needed for canvas positioning */
+        }
+         .line-chart-container canvas {
+             width: 100% !important;
+             height: 100% !important; /* Ensure canvas fills container */
+         }
+        .monthly-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .monthly-card {
+            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .monthly-card h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .monthly-card .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px; /* Ensure minimum width for horizontal scroll */
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 1; /* Stay above scrolling content */
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+        .editable {
+            border: none;
+            background: transparent;
+            width: 100%;
+            padding: 4px;
+            font-size: 14px;
+        }
+        .editable:focus {
+            background: #fff3cd;
+            outline: 2px solid #ffc107;
+            border-radius: 4px;
+        }
+        select.editable {
+            padding: 4px;
+        }
+        .add-row-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 20px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .add-row-btn:hover {
+            background: #218838;
+        }
+         .add-row-btn:disabled {
+             background: #ccc;
+             cursor: not-allowed;
+         }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+         .delete-btn:disabled {
+             background: #ccc;
+             cursor: not-allowed;
+         }
+
+        /* Login Screen Styles */
+        #loginScreen {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+         #loginScreen img {
+             max-width: 150px; /* Adjust as needed */
+             margin-bottom: 20px; /* Space below the logo */
+         }
+        #loginScreen h2 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .login-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .login-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        .login-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        #loginButton {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        #loginButton:hover {
+            background: #0056b3;
+        }
+        #loginMessage {
+            margin-top: 20px;
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+
+        @media (max-width: 992px) {
+             .charts-row {
+                 grid-template-columns: 1fr;
+             }
+             .dashboard-top {
+                 grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+             }
+             .monthly-metrics {
+                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+             }
+         }
+         @media (max-width: 576px) {
+             .dashboard-top {
+                 grid-template-columns: 1fr;
+             }
+             .filters {
+                 flex-direction: column;
+             }
+         }
+    </style>
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <img src="https://maqbusca.odoo.com/web/image/website/1/logo/Maqbusca?unique=d9754c6" alt="Logo da Empresa">
+        <h2>Login</h2>
+        <div class="login-group">
+            <label for="username">Usuário:</label>
+            <input type="text" id="username" required>
+        </div>
+        <div class="login-group">
+            <label for="password">Senha:</label>
+            <input type="password" id="password" required>
+        </div>
+        <button id="loginButton" onclick="handleLogin()">Entrar</button>
+        <div id="loginMessage"></div>
+    </div>
+
+    <!-- Main Content (Dashboard and Planilha) -->
+    <div id="mainContent" style="display: none;">
+        <div class="container">
+            <h1>📊 Dashboard de Leads</h1>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+                <button class="tab" onclick="switchTab('planilha')">Planilha</button>
+            </div>
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <!-- Top Metrics -->
+                <div class="dashboard-top">
+                    <div class="metric-card general">
+                        <h3>GERAL</h3>
+                        <div class="number" id="totalLeads">0</div>
+                        <div class="value">Total de Leads</div>
+                        <div style="margin-top: 10px; text-align: left; padding-left: 20px;">
+                            <div>Meta Ads: <span id="totalMeta">0</span></div>
+                            <div>Google Ads: <span id="totalGoogle">0</span></div>
+                            <div>Convertidos: <span id="totalConvertidos">0</span></div>
+                             <div>Em Aberto: <span id="totalAberto">0</span></div>
+                             <div>Recusados: <span id="totalRecusados">0</span></div>
+                            <div>Valor Total: R$ <span id="totalValor">0,00</span></div>
+                        </div>
+                    </div>
+                    <div class="metric-card" id="itajaiCard">
+                        <h3>ITAJAÍ</h3>
+                        <div class="number" id="itajaiLeads">0</div>
+                        <div class="value">Leads</div>
+                        <div style="margin-top: 10px; text-align: left; padding-left: 20px;">
+                            <div>Convertidos: <span id="itajaiConvertidos">0</span></div>
+                            <div>Em Aberto: <span id="itajaiAberto">0</span></div>
+                            <div>Recusados: <span id="itajaiRecusados">0</span></div>
+                            <div>Valor: R$ <span id="itajaiValor">0,00</span></div>
+                        </div>
+                    </div>
+                    <div class="metric-card" id="jundiaiCard">
+                        <h3>JUNDIAÍ</h3>
+                        <div class="number" id="jundiaiLeads">0</div>
+                        <div class="value">Leads</div>
+                        <div style="margin-top: 10px; text-align: left; padding-left: 20px;">
+                            <div>Convertidos: <span id="jundiaiConvertidos">0</span></div>
+                            <div>Em Aberto: <span id="jundiaiAberto">0</span></div>
+                            <div>Recusados: <span id="jundiaiRecusados">0</span></div>
+                            <div>Valor: R$ <span id="jundiaiValor">0,00</span></div>
+                        </div>
+                    </div>
+                    <div class="metric-card" id="pontaCard">
+                        <h3>PONTA GROSSA</h3>
+                        <div class="number" id="pontaLeads">0</div>
+                        <div class="value">Leads</div>
+                        <div style="margin-top: 10px; text-align: left; padding-left: 20px;">
+                            <div>Convertidos: <span id="pontaConvertidos">0</span></div>
+                            <div>Em Aberto: <span id="pontaAberto">0</span></div>
+                            <div>Recusados: <span id="pontaRecusados">0</span></div>
+                            <div>Valor: R$ <span id="pontaValor">0,00</span></div>
+                        </div>
+                    </div>
+                    <div class="metric-card" id="araucariaCard">
+                        <h3>ARAUCÁRIA</h3>
+                        <div class="number" id="araucariaLeads">0</div>
+                        <div class="value">Leads</div>
+                        <div style="margin-top: 10px; text-align: left; padding-left: 20px;">
+                            <div>Convertidos: <span id="araucariaConvertidos">0</span></div>
+                            <div>Em Aberto: <span id="araucariaAberto">0</span></div>
+                            <div>Recusados: <span id="araucariaRecusados">0</span></div>
+                            <div>Valor: R$ <span id="araucariaValor">0,00</span></div>
+                        </div>
+                    </div>
+                    <div class="metric-card" id="franciscoCard">
+                        <h3>FRANCISCO BELTRÃO</h3>
+                        <div class="number" id="franciscoLeads">0</div>
+                        <div class="value">Leads</div>
+                        <div style="margin-top: 10px; text-align: left; padding-left: 20px;">
+                            <div>Convertidos: <span id="franciscoConvertidos">0</span></div>
+                            <div>Em Aberto: <span id="franciscoAberto">0</span></div>
+                            <div>Recusados: <span id="franciscoRecusados">0</span></div>
+                            <div>Valor: R$ <span id="franciscoValor">0,00</span></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Filters -->
+                <div class="filters">
+                    <div class="filter-group">
+                        <label for="dataInicio">Data Início:</label>
+                        <input type="date" id="dataInicio" onchange="updateDashboard()">
+                    </div>
+                    <div class="filter-group">
+                        <label for="dataFim">Data Fim:</label>
+                        <input type="date" id="dataFim" onchange="updateDashboard()">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filtroRegiao">Região:</label>
+                        <select id="filtroRegiao" onchange="updateDashboard()">
+                            <option value="">Todas</option>
+                            <option value="Itajaí">Itajaí</option>
+                            <option value="Jundiaí">Jundiaí</option>
+                            <option value="Ponta Grossa">Ponta Grossa</option>
+                            <option value="Araucária">Araucária</option>
+                            <option value="Francisco Beltrão">Francisco Beltrão</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filtroCanal">Canal:</label>
+                        <select id="filtroCanal" onchange="updateDashboard()">
+                            <option value="">Todos</option>
+                            <option value="Meta Ads">Meta Ads</option>
+                            <option value="Google Ads">Google Ads</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Charts Row -->
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>Leads por Região</h3>
+                        <canvas id="regionChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Leads por Canal</h3>
+                        <canvas id="channelChart"></canvas>
+                    </div>
+                </div>
+                <!-- Line Chart -->
+                <div class="line-chart-container">
+                    <h3>Evolução dos Leads por Mês e Região</h3>
+                    <canvas id="lineChart"></canvas>
+                </div>
+                <!-- Monthly Metrics -->
+                <div class="monthly-metrics">
+                    <div class="monthly-card" id="mes1Card">
+                        <h3 id="mes1Title">MÊS 1</h3>
+                        <div class="metric">
+                            <span>Total de Leads:</span>
+                            <span id="mes1Total">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Convertidos:</span>
+                            <span id="mes1Convertidos">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Em Aberto:</span>
+                            <span id="mes1Aberto">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Recusados:</span>
+                            <span id="mes1Recusados">0</span>
+                        </div>
+                    </div>
+                    <div class="monthly-card" id="mes2Card">
+                        <h3 id="mes2Title">MÊS 2</h3>
+                        <div class="metric">
+                            <span>Total de Leads:</span>
+                            <span id="mes2Total">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Convertidos:</span>
+                            <span id="mes2Convertidos">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Em Aberto:</span>
+                            <span id="mes2Aberto">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Recusados:</span>
+                            <span id="mes2Recusados">0</span>
+                        </div>
+                    </div>
+                    <div class="monthly-card" id="mes3Card">
+                        <h3 id="mes3Title">MÊS 3</h3>
+                        <div class="metric">
+                            <span>Total de Leads:</span>
+                            <span id="mes3Total">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Convertidos:</span>
+                            <span id="mes3Convertidos">0</span>
+                        </div>
+                        <div class="metric">
+                            <span>Em Aberto:</span>
+                            <span><span id="mes3Aberto">0</span></span>
+                        </div>
+                        <div class="metric">
+                            <span>Recusados:</span>
+                            <span id="mes3Recusados">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Planilha Tab -->
+            <div id="planilha" class="tab-content">
+                <button class="add-row-btn" id="addRowBtn" onclick="addRow()">➕ Adicionar Lead</button>
+                <div class="table-container">
+                    <table id="leadsTable">
+                        <thead>
+                            <tr>
+                                <th>Nº Cliente</th>
+                                <th>CNPJ</th>
+                                <th>Cliente</th>
+                                <th>Comercial</th>
+                                <th>Região</th>
+                                <th>Canal</th>
+                                <th>Nº Pedido</th>
+                                <th>Data Pedido</th>
+                                <th>Status</th>
+                                <th>Valor</th>
+                                <th>Descrição</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Rows will be added here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load leads from localStorage or initialize empty array
+        let leads = JSON.parse(localStorage.getItem('leads')) || [];
+        let charts = {}; // Object to hold chart instances
+        let currentUserRole = null; // Variable to store the role of the logged-in user
+
+        // Function to handle login
+        function handleLogin() {
+            const usernameInput = document.getElementById('username').value;
+            const passwordInput = document.getElementById('password').value;
+            const loginMessage = document.getElementById('loginMessage');
+
+            // Define users
+            const users = {
+                'Leonardo': { password: '2908', role: 'admin' },
+                'user': { password: '1234', role: 'user' }
+            };
+
+            if (users[usernameInput] && users[usernameInput].password === passwordInput) {
+                currentUserRole = users[usernameInput].role;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                loginMessage.textContent = ''; // Clear any previous message
+                // Load initial content after successful login
+                const activeTab = document.querySelector('.tab.active');
+                 if (activeTab) {
+                     const tabName = activeTab.getAttribute('onclick').replace("switchTab('", "").replace("')", "");
+                      switchTab(tabName); // Switch to the default or saved active tab
+                 } else {
+                     switchTab('dashboard'); // Default to dashboard
+                 }
+
+                 // Load table after setting the role, as table rendering depends on the role
+                 loadTable();
+
+            } else {
+                loginMessage.textContent = 'Usuário ou senha inválidos.';
+            }
+        }
+
+
+        // Function to switch between tabs
+        function switchTab(tabName) {
+            // Remove 'active' class from all tabs and tab contents
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Add 'active' class to the clicked tab and corresponding content
+            const clickedTab = document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`);
+            if (clickedTab) {
+                 clickedTab.classList.add('active');
+            }
+            const targetContent = document.getElementById(tabName);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+
+
+            // Update content based on the active tab
+            if (tabName === 'dashboard') {
+                updateDashboard(); // Update dashboard when switching to it
+            } else if (tabName === 'planilha') {
+                loadTable(); // Load table when switching to it
+            }
+        }
+
+        // Function to add a new row to the leads data
+        function addRow() {
+            if (currentUserRole !== 'admin') {
+                alert('Você não tem permissão para adicionar leads.');
+                return;
+            }
+            const newLead = {
+                id: Date.now(), // Simple unique ID based on timestamp
+                numeroCliente: '',
+                cnpj: '',
+                cliente: '',
+                comercial: '',
+                regiao: '',
+                canal: '',
+                numeroPedido: '',
+                dataPedido: '', // Use YYYY-MM-DD format
+                status: '',
+                valor: 0,
+                descricao: ''
+            };
+            leads.push(newLead);
+            saveData(); // Save updated leads array
+            loadTable(); // Reload the table to show the new row
+            updateDashboard(); // Update dashboard as data changed
+        }
+
+        // Function to delete a row by ID
+        function deleteRow(id) {
+             if (currentUserRole !== 'admin') {
+                 alert('Você não tem permissão para excluir leads.');
+                 return;
+             }
+            if (confirm('Tem certeza que deseja excluir este lead?')) {
+                leads = leads.filter(lead => lead.id !== id);
+                saveData(); // Save updated leads array
+                loadTable(); // Reload the table
+                updateDashboard(); // Update dashboard as data changed
+            }
+        }
+
+        // Function to save leads data to localStorage
+        function saveData() {
+            localStorage.setItem('leads', JSON.stringify(leads));
+        }
+
+        // Function to load and display leads data in the table
+        function loadTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = ''; // Clear current table body
+
+            // Disable add button for non-admin users
+            const addRowBtn = document.getElementById('addRowBtn');
+            if (addRowBtn) {
+                addRowBtn.disabled = (currentUserRole !== 'admin');
+                addRowBtn.style.display = (currentUserRole === 'admin' ? 'inline-block' : 'none'); // Hide for non-admin
+            }
+
+
+            leads.forEach((lead) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="text" class="editable" value="${lead.numeroCliente}" onchange="updateLead(${lead.id}, 'numeroCliente', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td><input type="text" class="editable" value="${lead.cnpj}" onchange="updateLead(${lead.id}, 'cnpj', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td><input type="text" class="editable" value="${lead.cliente}" onchange="updateLead(${lead.id}, 'cliente', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td><input type="text" class="editable" value="${lead.comercial}" onchange="updateLead(${lead.id}, 'comercial', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td>
+                        <select class="editable" onchange="updateLead(${lead.id}, 'regiao', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}>
+                            <option value="">Selecione</option>
+                            <option value="Itajaí" ${lead.regiao === 'Itajaí' ? 'selected' : ''}>Itajaí</option>
+                            <option value="Jundiaí" ${lead.regiao === 'Jundiaí' ? 'selected' : ''}>Jundiaí</option>
+                            <option value="Ponta Grossa" ${lead.regiao === 'Ponta Grossa' ? 'selected' : ''}>Ponta Grossa</option>
+                            <option value="Araucária" ${lead.regiao === 'Araucária' ? 'selected' : ''}>Araucária</option>
+                            <option value="Francisco Beltrão" ${lead.regiao === 'Francisco Beltrão' ? 'selected' : ''}>Francisco Beltrão</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="editable" onchange="updateLead(${lead.id}, 'canal', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}>
+                            <option value="">Selecione</option>
+                            <option value="Meta Ads" ${lead.canal === 'Meta Ads' ? 'selected' : ''}>Meta Ads</option>
+                            <option value="Google Ads" ${lead.canal === 'Google Ads' ? 'selected' : ''}>Google Ads</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="editable" value="${lead.numeroPedido}" onchange="updateLead(${lead.id}, 'numeroPedido', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td><input type="date" class="editable" value="${lead.dataPedido}" onchange="updateLead(${lead.id}, 'dataPedido', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td>
+                        <select class="editable" onchange="updateLead(${lead.id}, 'status', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}>
+                            <option value="">Selecione</option>
+                            <option value="Em aberto" ${lead.status === 'Em aberto' ? 'selected' : ''}>Em aberto</option>
+                            <option value="Convertido" ${lead.status === 'Convertido' ? 'selected' : ''}>Convertido</option>
+                            <option value="Recusado" ${lead.status === 'Recusado' ? 'selected' : ''}>Recusado</option>
+                        </select>
+                    </td>
+                    <td><input type="number" class="editable" value="${lead.valor}" onchange="updateLead(${lead.id}, 'valor', parseFloat(this.value) || 0)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td><input type="text" class="editable" value="${lead.descricao}" onchange="updateLead(${lead.id}, 'descricao', this.value)" ${currentUserRole !== 'admin' ? 'disabled' : ''}></td>
+                    <td><button class="delete-btn" onclick="deleteRow(${lead.id})" ${currentUserRole !== 'admin' ? 'disabled' : ''} style="${currentUserRole !== 'admin' ? 'display: none;' : ''}">🗑️</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Function to update a specific field of a lead by ID
+        function updateLead(id, field, value) {
+             if (currentUserRole !== 'admin') {
+                 // This check is also in loadTable (disabling inputs), but good to have here too
+                 return;
+             }
+            const leadIndex = leads.findIndex(l => l.id === id);
+            if (leadIndex > -1) {
+                leads[leadIndex][field] = value;
+                saveData(); // Save changes
+                updateDashboard(); // Update dashboard after changes
+            }
+        }
+
+        // Function to filter leads based on selected filters
+        function getFilteredLeads() {
+            let filtered = [...leads]; // Start with all leads
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const filtroRegiao = document.getElementById('filtroRegiao').value;
+            const filtroCanal = document.getElementById('filtroCanal').value;
+
+            // Apply date filter
+            if (dataInicio) {
+                filtered = filtered.filter(lead => lead.dataPedido && lead.dataPedido >= dataInicio);
+            }
+            if (dataFim) {
+                filtered = filtered.filter(lead => lead.dataPedido && lead.dataPedido <= dataFim);
+            }
+
+            // Apply region filter
+            if (filtroRegiao) {
+                filtered = filtered.filter(lead => lead.regiao === filtroRegiao);
+            }
+
+            // Apply channel filter
+            if (filtroCanal) {
+                filtered = filtered.filter(lead => lead.canal === filtroCanal);
+            }
+
+            return filtered;
+        }
+
+        // Function to update all dashboard metrics and charts
+        function updateDashboard() {
+            const filteredLeads = getFilteredLeads();
+
+            // --- Update Top Metrics ---
+            const totalLeads = filteredLeads.length;
+            const metaAds = filteredLeads.filter(l => l.canal === 'Meta Ads').length;
+            const googleAds = filteredLeads.filter(l => l.canal === 'Google Ads').length;
+            const convertidos = filteredLeads.filter(l => l.status === 'Convertido').length;
+            const emAberto = filteredLeads.filter(l => l.status === 'Em aberto').length;
+            const recusados = filteredLeads.filter(l => l.status === 'Recusado').length;
+            const totalValor = filteredLeads.reduce((sum, l) => sum + (parseFloat(l.valor) || 0), 0);
+
+            document.getElementById('totalLeads').textContent = totalLeads;
+            document.getElementById('totalMeta').textContent = metaAds;
+            document.getElementById('totalGoogle').textContent = googleAds;
+            document.getElementById('totalConvertidos').textContent = convertidos;
+            document.getElementById('totalAberto').textContent = emAberto;
+            document.getElementById('totalRecusados').textContent = recusados;
+            document.getElementById('totalValor').textContent = totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            // Metrics by region
+            const regioes = ['Itajaí', 'Jundiaí', 'Ponta Grossa', 'Araucária', 'Francisco Beltrão'];
+            const regiaoIds = ['itajai', 'jundiai', 'ponta', 'araucaria', 'francisco'];
+
+            regioes.forEach((regiao, index) => {
+                const regionLeads = filteredLeads.filter(l => l.regiao === regiao);
+                const regionId = regiaoIds[index];
+                document.getElementById(`${regionId}Leads`).textContent = regionLeads.length;
+                document.getElementById(`${regionId}Convertidos`).textContent = regionLeads.filter(l => l.status === 'Convertido').length;
+                document.getElementById(`${regionId}Aberto`).textContent = regionLeads.filter(l => l.status === 'Em aberto').length;
+                document.getElementById(`${regionId}Recusados`).textContent = regionLeads.filter(l => l.status === 'Recusado').length;
+                document.getElementById(`${regionId}Valor`).textContent = regionLeads.reduce((sum, l) => sum + (parseFloat(l.valor) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            });
+
+            // --- Update Charts ---
+            updateCharts(filteredLeads);
+
+            // --- Update Monthly Metrics (last 3 months, unfiltered by date inputs) ---
+            updateMonthlyMetrics();
+        }
+
+        // Function to update the charts (Region Pie, Channel Pie, Line Chart)
+        function updateCharts(filteredLeads) {
+            // Region chart data
+            const regionData = {};
+            filteredLeads.forEach(lead => {
+                if (lead.regiao) {
+                    regionData[lead.regiao] = (regionData[lead.regiao] || 0) + 1;
+                }
+            });
+            updatePieChart('regionChart', 'Leads por Região', regionData);
+
+            // Channel chart data
+            const channelData = {};
+            filteredLeads.forEach(lead => {
+                if (lead.canal) {
+                    channelData[lead.canal] = (channelData[lead.canal] || 0) + 1;
+                }
+            });
+            updatePieChart('channelChart', 'Leads por Canal', channelData);
+
+            // Line chart data (Evolution of Leads by Month and Region)
+            updateLineChart(filteredLeads);
+        }
+
+        // Function to create or update a pie chart
+        function updatePieChart(canvasId, title, data) {
+            const ctx = document.getElementById(canvasId);
+             if (!ctx) return; // Ensure canvas exists
+
+            // Destroy existing chart instance if it exists
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+                charts[canvasId] = null; // Clear the reference
+            }
+
+            const chartData = {
+                labels: Object.keys(data),
+                datasets: [{
+                    data: Object.values(data),
+                    backgroundColor: [
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+                        '#A1C181', '#F7EDE2', '#F5CB5C', '#247BA0', '#6A0572', '#AB83A1' // Add more colors if needed
+                    ]
+                }]
+            };
+
+            charts[canvasId] = new Chart(ctx, {
+                type: 'pie',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Allow adjusting size
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title,
+                            font: { size: 16 }
+                        },
+                        legend: {
+                            position: 'bottom'
+                        },
+                         tooltip: {
+                             callbacks: {
+                                 label: function(context) {
+                                     const label = context.label || '';
+                                     const value = context.raw || 0;
+                                     const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+                                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                     return `${label}: ${value} (${percentage}%)`;
+                                 }
+                             }
+                         }
+                    }
+                }
+            });
+        }
+
+        // Function to create or update the line chart
+        function updateLineChart(filteredLeads) {
+            const ctx = document.getElementById('lineChart');
+             if (!ctx) return; // Ensure canvas exists
+
+            // Destroy existing chart instance if it exists
+            if (charts['lineChart']) {
+                charts['lineChart'].destroy();
+                charts['lineChart'] = null; // Clear the reference
+            }
+
+            // Group leads by month and region for the line chart
+            const monthlyRegionData = {}; // { 'YYYY-MM': { 'RegionA': count, 'RegionB': count }, ... }
+            const regioes = ['Itajaí', 'Jundiaí', 'Ponta Grossa', 'Araucária', 'Francisco Beltrão'];
+
+            filteredLeads.forEach(lead => {
+                if (lead.dataPedido && lead.regiao) {
+                    const [year, month] = lead.dataPedido.split('-').map(Number);
+                    const monthYear = `${year}-${String(month).padStart(2, '0')}`; // YYYY-MM
+                    if (!monthlyRegionData[monthYear]) {
+                        monthlyRegionData[monthYear] = {};
+                        regioes.forEach(reg => monthlyRegionData[monthYear][reg] = 0); // Initialize counts for all regions
+                    }
+                    if (monthlyRegionData[monthYear][lead.regiao] !== undefined) { // Check if region is in our list
+                         monthlyRegionData[monthYear][lead.regiao]++;
+                    }
+                }
+            });
+
+            // Sort months chronologically
+            const sortedMonths = Object.keys(monthlyRegionData).sort();
+
+            const datasets = regioes.map(regiao => {
+                const data = sortedMonths.map(month => monthlyRegionData[month][regiao] || 0);
+                return {
+                    label: regiao,
+                    data: data,
+                    borderColor: getRandomColor(), // Assign a random color
+                    fill: false,
+                    tension: 0.1
+                };
+            });
+
+             // Get month names for labels
+             const monthLabels = sortedMonths.map(monthYear => {
+                 const [year, month] = monthYear.split('-').map(Number);
+                 const date = new Date(year, month - 1, 1); // Month is 0-indexed
+                 return date.toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
+             });
+
+
+            const chartData = {
+                labels: monthLabels,
+                datasets: datasets
+            };
+
+            charts['lineChart'] = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                     plugins: {
+                         title: {
+                             display: true,
+                             text: 'Evolução dos Leads por Mês e Região',
+                             font: { size: 16 }
+                         },
+                         legend: {
+                             position: 'bottom'
+                         }
+                     },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mês'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Total de Leads'
+                            },
+                            beginAtZero: true,
+                             // Ensure integer steps on y-axis if counts are integers
+                            ticks: {
+                                callback: function(value) {
+                                    if (Number.isInteger(value)) {
+                                        return value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+         // Helper function to generate random colors for charts
+         function getRandomColor() {
+             const letters = '0123456789ABCDEF';
+             let color = '#';
+             for (let i = 0; i < 6; i++) {
+                 color += letters[Math.floor(Math.random() * 16)];
+             }
+             return color;
+         }
+
+
+        // Function to update the monthly metrics cards (last 3 months)
+        function updateMonthlyMetrics() {
+            // Use ALL leads for this, regardless of date filters
+            const allLeads = leads;
+
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            // Get the last 3 months (including the current one)
+            const monthsToDisplay = [];
+            for (let i = 0; i < 3; i++) {
+                const date = new Date(currentYear, currentMonth - i, 1);
+                monthsToDisplay.push({
+                    year: date.getFullYear(),
+                    month: date.getMonth(), // 0-indexed
+                    name: date.toLocaleString('pt-BR', { month: 'long' }).toUpperCase()
+                });
+            }
+             monthsToDisplay.reverse(); // Display in chronological order
+
+            // Calculate metrics for each of the last 3 months
+            monthsToDisplay.forEach((monthInfo, index) => {
+                const monthLeads = allLeads.filter(lead => {
+                    if (!lead.dataPedido) return false;
+                    const [year, month] = lead.dataPedido.split('-').map(Number);
+                    // Month from split is 1-indexed, monthInfo.month is 0-indexed
+                    return year === monthInfo.year && (month - 1) === monthInfo.month;
+                });
+
+                const total = monthLeads.length;
+                const convertidos = monthLeads.filter(l => l.status === 'Convertido').length;
+                const emAberto = monthLeads.filter(l => l.status === 'Em aberto').length;
+                const recusados = monthLeads.filter(l => l.status === 'Recusado').length;
+
+                // Update the corresponding card
+                document.getElementById(`mes${index + 1}Title`).textContent = monthInfo.name;
+                document.getElementById(`mes${index + 1}Total`).textContent = total;
+                document.getElementById(`mes${index + 1}Convertidos`).textContent = convertidos;
+                document.getElementById(`mes${index + 1}Aberto`).textContent = emAberto;
+                document.getElementById(`mes${index + 1}Recusados`).textContent = recusados;
+            });
+        }
+
+
+        // Initial load: Hide main content and show login screen
+        document.addEventListener('DOMContentLoaded', () => {
+             document.getElementById('mainContent').style.display = 'none';
+             document.getElementById('loginScreen').style.display = 'block';
+
+             // Add event listener for Enter key on password field
+             document.getElementById('password').addEventListener('keypress', function(event) {
+                 if (event.key === 'Enter') {
+                     event.preventDefault(); // Prevent default form submission
+                     handleLogin();
+                 }
+             });
+              // Add event listener for Enter key on username field
+              document.getElementById('username').addEventListener('keypress', function(event) {
+                  if (event.key === 'Enter') {
+                      event.preventDefault(); // Prevent default form submission
+                      handleLogin();
+                  }
+              });
+        });
+
+        // Ensure charts resize correctly on window resize (Chart.js handles this if responsive: true)
+        window.addEventListener('resize', () => {
+             // No manual action needed here unless specific custom resize logic is required
+        });
+
+    </script>
+</body>
+</html>
